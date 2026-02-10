@@ -1,26 +1,24 @@
 // Vexta Admin - Firebase bağlantısı (CDN modül)
-// 1) Firebase Console > Proje Ayarları > Uygulamalarınız > "Vexta Yöneticisi (Web)"
-// 2) Oradaki config değerlerini aşağıdaki firebaseConfig içine kopyala
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// ✅ BURAYI Firebase Console’dan kopyaladığın config ile değiştir
+// ✅ Vexta Yöneticisi (Web) config (SENİN PROJEN)
 const firebaseConfig = {
-  apiKey: "BURAYA",
-  authDomain: "BURAYA",
-  projectId: "BURAYA",
-  storageBucket: "BURAYA",
-  messagingSenderId: "BURAYA",
-  appId: "BURAYA",
+  apiKey: "AIzaSyCuN-z_3yIGkakwLj8eehcXap6Nts8Efks",
+  authDomain: "vexta-1cce5.firebaseapp.com",
+  projectId: "vexta-1cce5",
+  storageBucket: "vexta-1cce5.firebasestorage.app",
+  messagingSenderId: "630352061374",
+  appId: "1:630352061374:web:6883c8ac0c99cce4530fef",
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Basit UI (index.html'deki <body> içine yazdırıyoruz)
+// UI
 document.body.innerHTML = `
   <div style="max-width:720px;margin:40px auto;font-family:system-ui;padding:16px">
     <h1>Vexta Admin Panel</h1>
@@ -57,6 +55,10 @@ document.body.innerHTML = `
 
 const $ = (id) => document.getElementById(id);
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
 async function refresh() {
   $("msg").textContent = "Yükleniyor...";
   $("list").innerHTML = "";
@@ -86,10 +88,6 @@ async function refresh() {
   });
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
-}
-
 $("loginBtn").addEventListener("click", async () => {
   $("authMsg").textContent = "";
   try {
@@ -109,11 +107,7 @@ $("addBtn").addEventListener("click", async () => {
   const desc = $("desc").value.trim();
   if (!title) return ($("msg").textContent = "Başlık boş olamaz.");
 
-  await addDoc(collection(db, "contents"), {
-    title,
-    desc,
-    createdAt: serverTimestamp(),
-  });
+  await addDoc(collection(db, "contents"), { title, desc, createdAt: serverTimestamp() });
 
   $("title").value = "";
   $("desc").value = "";
