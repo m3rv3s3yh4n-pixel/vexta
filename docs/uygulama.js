@@ -4,14 +4,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// ✅ Vexta Yöneticisi (Web) config (SENİN PROJEN)
+// 🔴 Firebase config – seninki birebir burada:
 const firebaseConfig = {
   apiKey: "AIzaSyCuN-z_3yIGkakwLj8eehcXap6Nts8Efks",
   authDomain: "vexta-1cce5.firebaseapp.com",
   projectId: "vexta-1cce5",
   storageBucket: "vexta-1cce5.firebasestorage.app",
   messagingSenderId: "630352061374",
-  appId: "1:630352061374:web:6883c8ac0c99cce4530fef",
+  appId: "1:630352061374:web:6883c8ac0c99cce4530fef"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -33,12 +33,12 @@ document.body.innerHTML = `
 
     <div id="panel" style="display:none;border:1px solid #ddd;padding:16px;border-radius:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-        <h3 style="margin:0">İçerikler</h3>
+        <h3 style="margin:0">Bölümler</h3>
         <button id="logoutBtn" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer">Çıkış</button>
       </div>
 
       <div style="margin-top:14px;border-top:1px solid #eee;padding-top:14px">
-        <h4>Yeni içerik ekle</h4>
+        <h4>Yeni bölüm ekle</h4>
         <input id="title" placeholder="Başlık" style="width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:10px" />
         <textarea id="desc" placeholder="Açıklama" rows="3" style="width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:10px"></textarea>
         <button id="addBtn" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer">Ekle</button>
@@ -55,15 +55,11 @@ document.body.innerHTML = `
 
 const $ = (id) => document.getElementById(id);
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
-}
-
 async function refresh() {
   $("msg").textContent = "Yükleniyor...";
   $("list").innerHTML = "";
 
-  const snap = await getDocs(collection(db, "contents"));
+  const snap = await getDocs(collection(db, "bölümler")); // 🔴 Firestore koleksiyon adı
   const items = [];
   snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
 
@@ -72,9 +68,9 @@ async function refresh() {
   items.forEach((it) => {
     const li = document.createElement("li");
     li.innerHTML = `
-      <strong>${escapeHtml(it.title || "")}</strong><br/>
-      <small>${escapeHtml(it.desc || "")}</small><br/>
-      <button data-id="${it.id}" class="del" style="margin-top:8px;padding:6px 10px;border:0;border-radius:10px;cursor:pointer">Sil</button>
+      <strong>${it.başlık || it.title || ""}</strong><br/>
+      <small>${it.açıklama || it.desc || ""}</small><br/>
+      <button data-id="${it.id}" class="del">Sil</button>
     `;
     $("list").appendChild(li);
   });
@@ -82,47 +78,37 @@ async function refresh() {
   document.querySelectorAll(".del").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-id");
-      await deleteDoc(doc(db, "contents", id));
+      await deleteDoc(doc(db, "bölümler", id));
       await refresh();
     });
   });
 }
 
-$("loginBtn").addEventListener("click", async () => {
-  $("authMsg").textContent = "";
+$("loginBtn").onclick = async () => {
   try {
-    await signInWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value);
+    await signInWithEmailAndPassword(auth, $("email").value, $("pass").value);
   } catch (e) {
-    $("authMsg").textContent = e?.message || "Giriş hatası";
+    $("authMsg").textContent = e.message;
   }
-});
+};
 
-$("logoutBtn").addEventListener("click", async () => {
-  await signOut(auth);
-});
+$("logoutBtn").onclick = async () => signOut(auth);
 
-$("addBtn").addEventListener("click", async () => {
-  $("msg").textContent = "";
-  const title = $("title").value.trim();
-  const desc = $("desc").value.trim();
-  if (!title) return ($("msg").textContent = "Başlık boş olamaz.");
-
-  await addDoc(collection(db, "contents"), { title, desc, createdAt: serverTimestamp() });
-
+$("addBtn").onclick = async () => {
+  await addDoc(collection(db, "bölümler"), {
+    başlık: $("title").value,
+    açıklama: $("desc").value,
+    createdAt: serverTimestamp(),
+  });
   $("title").value = "";
   $("desc").value = "";
-  await refresh();
-});
+  refresh();
+};
 
-$("refreshBtn").addEventListener("click", refresh);
+$("refreshBtn").onclick = refresh;
 
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    $("authBox").style.display = "none";
-    $("panel").style.display = "block";
-    await refresh();
-  } else {
-    $("authBox").style.display = "block";
-    $("panel").style.display = "none";
-  }
+onAuthStateChanged(auth, (user) => {
+  $("authBox").style.display = user ? "none" : "block";
+  $("panel").style.display = user ? "block" : "none";
+  if (user) refresh();
 });
