@@ -1,114 +1,171 @@
-// Vexta Admin - Firebase bağlantısı (CDN modül)
-
+// Vexta Admin - Netflix vibe panel (HAZIR DOSYA)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  deleteDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// 🔴 Firebase config – seninki birebir burada:
+// 🔥 SENİN FIREBASE CONFIG (Vexta)
 const firebaseConfig = {
   apiKey: "AIzaSyCuN-z_3yIGkakwLj8eehcXap6Nts8Efks",
   authDomain: "vexta-1cce5.firebaseapp.com",
   projectId: "vexta-1cce5",
   storageBucket: "vexta-1cce5.firebasestorage.app",
   messagingSenderId: "630352061374",
-  appId: "1:630352061374:web:6883c8ac0c99cce4530fef"
+  appId: "1:630352061374:web:6883c8ac0c99cce4530fef",
 };
+
+// 📦 Firestore koleksiyon adı
+const COL = "contents";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// UI
-document.body.innerHTML = `
-  <div style="max-width:720px;margin:40px auto;font-family:system-ui;padding:16px">
-    <h1>Vexta Admin Panel</h1>
-
-    <div id="authBox" style="border:1px solid #ddd;padding:16px;border-radius:12px;margin:16px 0">
-      <h3>Giriş</h3>
-      <input id="email" type="email" placeholder="E-posta" style="width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:10px" />
-      <input id="pass" type="password" placeholder="Şifre" style="width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:10px" />
-      <button id="loginBtn" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer">Giriş Yap</button>
-      <p id="authMsg" style="color:#b00;margin-top:10px"></p>
-    </div>
-
-    <div id="panel" style="display:none;border:1px solid #ddd;padding:16px;border-radius:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-        <h3 style="margin:0">Bölümler</h3>
-        <button id="logoutBtn" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer">Çıkış</button>
-      </div>
-
-      <div style="margin-top:14px;border-top:1px solid #eee;padding-top:14px">
-        <h4>Yeni bölüm ekle</h4>
-        <input id="title" placeholder="Başlık" style="width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:10px" />
-        <textarea id="desc" placeholder="Açıklama" rows="3" style="width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:10px"></textarea>
-        <button id="addBtn" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer">Ekle</button>
-        <p id="msg" style="margin-top:10px"></p>
-      </div>
-
-      <div style="margin-top:18px">
-        <button id="refreshBtn" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer">Listeyi Yenile</button>
-        <ul id="list" style="margin-top:14px;padding-left:18px"></ul>
-      </div>
-    </div>
-  </div>
-`;
-
+// helpers
 const $ = (id) => document.getElementById(id);
+const setText = (id, t) => { const el = $(id); if (el) el.textContent = t; };
+const show = (id) => { const el = $(id); if (el) el.classList.remove("hidden"); };
+const hide = (id) => { const el = $(id); if (el) el.classList.add("hidden"); };
 
-async function refresh() {
-  $("msg").textContent = "Yükleniyor...";
-  $("list").innerHTML = "";
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[m]));
+}
 
-  const snap = await getDocs(collection(db, "bölümler")); // 🔴 Firestore koleksiyon adı
-  const items = [];
-  snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+function setPill(text, ok=true){
+  const pill = document.getElementById("statusPill");
+  if (!pill) return;
+  pill.textContent = text;
+  pill.style.borderColor = ok ? "rgba(0,229,255,.18)" : "rgba(239,68,68,.35)";
+  pill.style.background = ok ? "rgba(11,16,34,.55)" : "rgba(239,68,68,.10)";
+}
 
-  $("msg").textContent = `Toplam: ${items.length}`;
-
-  items.forEach((it) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <strong>${it.başlık || it.title || ""}</strong><br/>
-      <small>${it.açıklama || it.desc || ""}</small><br/>
-      <button data-id="${it.id}" class="del">Sil</button>
-    `;
-    $("list").appendChild(li);
+function setTab(tabId){
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => {
+    if (t.getAttribute("data-tab") === tabId) t.classList.add("active");
   });
 
-  document.querySelectorAll(".del").forEach((btn) => {
+  ["tabAdd","tabList","tabSettings"].forEach(id => hide(id));
+  show(tabId);
+}
+
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => setTab(btn.getAttribute("data-tab")));
+});
+
+async function refreshList() {
+  setText("listHint", "Yükleniyor...");
+  const cards = document.getElementById("cards");
+  if (cards) cards.innerHTML = "";
+
+  const snap = await getDocs(collection(db, COL));
+  const items = [];
+  snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+
+  setText("kpiTotal", String(items.length));
+  setText("kpiLast", items.length ? "Güncellendi" : "—");
+
+  const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+  const filtered = q
+    ? items.filter(it => String(it.title || "").toLowerCase().includes(q))
+    : items;
+
+  setText("listHint", filtered.length ? "" : "Henüz içerik yok.");
+
+  filtered.forEach((it, idx) => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="poster"></div>
+      <div class="badgeRow">
+        <div class="badge badgeCyan">Öne Çıkan</div>
+        <div class="badge">Editörün Seçimi</div>
+      </div>
+      <div class="itemBody">
+        <div class="itemTitle">${escapeHtml(it.title || "")}</div>
+        <div class="itemDesc">${escapeHtml(it.desc || "")}</div>
+        <div class="meta">
+          <span>#${idx + 1}</span>
+          <span>${COL}</span>
+        </div>
+        <div class="miniBtns">
+          <button class="mini danger" data-del="${it.id}">Sil</button>
+        </div>
+      </div>
+    `;
+    cards?.appendChild(el);
+  });
+
+  document.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const id = btn.getAttribute("data-id");
-      await deleteDoc(doc(db, "bölümler", id));
-      await refresh();
+      const id = btn.getAttribute("data-del");
+      if (!id) return;
+      await deleteDoc(doc(db, COL, id));
+      await refreshList();
     });
   });
 }
 
-$("loginBtn").onclick = async () => {
+document.getElementById("refreshBtn")?.addEventListener("click", refreshList);
+document.getElementById("refreshBtnTop")?.addEventListener("click", refreshList);
+document.getElementById("q")?.addEventListener("input", refreshList);
+
+document.getElementById("loginBtn")?.addEventListener("click", async () => {
+  setText("authMsg", "");
   try {
-    await signInWithEmailAndPassword(auth, $("email").value, $("pass").value);
+    setPill("Giriş yapılıyor...", true);
+    await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("pass").value);
   } catch (e) {
-    $("authMsg").textContent = e.message;
+    setPill("Giriş hatası", false);
+    setText("authMsg", e?.message || "Giriş hatası");
   }
-};
+});
 
-$("logoutBtn").onclick = async () => signOut(auth);
+document.getElementById("logoutBtnTop")?.addEventListener("click", async () => {
+  await signOut(auth);
+});
 
-$("addBtn").onclick = async () => {
-  await addDoc(collection(db, "bölümler"), {
-    başlık: $("title").value,
-    açıklama: $("desc").value,
-    createdAt: serverTimestamp(),
-  });
-  $("title").value = "";
-  $("desc").value = "";
-  refresh();
-};
+document.getElementById("addBtn")?.addEventListener("click", async () => {
+  const title = document.getElementById("title").value.trim();
+  const desc = document.getElementById("desc").value.trim();
 
-$("refreshBtn").onclick = refresh;
+  if (!title) return setText("msg", "Başlık boş olamaz.");
 
-onAuthStateChanged(auth, (user) => {
-  $("authBox").style.display = user ? "none" : "block";
-  $("panel").style.display = user ? "block" : "none";
-  if (user) refresh();
+  setText("msg", "Ekleniyor...");
+  await addDoc(collection(db, COL), { title, desc, createdAt: serverTimestamp() });
+
+  document.getElementById("title").value = "";
+  document.getElementById("desc").value = "";
+  setText("msg", "✅ Eklendi!");
+  setTab("tabList");
+  await refreshList();
+});
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    hide("authBox");
+    show("panel");
+    show("logoutBtnTop");
+    setPill("Admin oturum açık ✅", true);
+    setText("kpiAuth", "Açık");
+    setTab("tabList");
+    await refreshList();
+  } else {
+    show("authBox");
+    hide("panel");
+    hide("logoutBtnTop");
+    setPill("Giriş bekleniyor...", true);
+    setText("kpiAuth", "Kapalı");
+    setText("kpiTotal", "—");
+    setText("kpiLast", "—");
+  }
 });
